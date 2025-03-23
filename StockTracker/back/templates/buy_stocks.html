@@ -1,0 +1,42 @@
+<table style="width: 90%; margin: 20px auto; border-collapse: collapse; font-family: Arial, sans-serif; background-color: #1e1e1e; color: white; border-radius: 10px; overflow: hidden;">
+    <thead>
+        <tr style="background-color: #222; color: white;">
+            <th style="padding: 12px; border: 1px solid #333;">Ticker</th>
+            <th style="padding: 12px; border: 1px solid #333;">Name</th>
+            <th style="padding: 12px; border: 1px solid #333;">Current Price</th>
+            <th style="padding: 12px; border: 1px solid #333;">52W High</th>
+            <th style="padding: 12px; border: 1px solid #333;">52W Low</th>
+            <th style="padding: 12px; border: 1px solid #333;">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for stock in stocks %}
+        <tr style="border-bottom: 1px solid #444; transition: background 0.3s ease;"
+            onmouseover="this.style.backgroundColor='rgba(0, 255, 0, 0.2)';"
+            onmouseout="this.style.backgroundColor='';">
+            <td style="padding: 12px; border: 1px solid #333; font-weight: bold;">
+                <a href="{{ url_for('stock_details.stock_page', ticker=stock.ticker) }}" style="color: #00ff00; text-decoration: none; font-weight: bold;">
+                    {{ stock.ticker }}
+                </a>
+            </td>
+            <td style="padding: 12px; border: 1px solid #333;">{{ stock.name }}</td>
+            <td style="padding: 12px; border: 1px solid #333; font-weight: bold; color: #00ff00;">
+                ₹{{ stock.price }}
+            </td>
+            <td style="padding: 12px; border: 1px solid #333;">₹{{ stock.high_52 }}</td>
+            <td style="padding: 12px; border: 1px solid #333;">₹{{ stock.low_52 }}</td>
+            <td style="padding: 12px; border: 1px solid #333;">
+                <form method="post" action="{{ url_for('transactions.buy_stock') }}" style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                    <input type="hidden" name="ticker" value="{{ stock.ticker }}">
+                    <input type="number" name="quantity" min="1" required 
+                           style="width: 60px; padding: 6px; border: 1px solid #666; border-radius: 5px; background: #333; color: white; text-align: center;">
+                    <button type="submit" 
+                            style="background-color: #00ff00; color: black; font-weight: bold; border: none; padding: 8px 14px; cursor: pointer; border-radius: 5px;">
+                        Buy
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
