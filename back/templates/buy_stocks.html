@@ -1,42 +1,208 @@
-<table style="width: 90%; margin: 20px auto; border-collapse: collapse; font-family: Arial, sans-serif; background-color: #1e1e1e; color: white; border-radius: 10px; overflow: hidden;">
-    <thead>
-        <tr style="background-color: #222; color: white;">
-            <th style="padding: 12px; border: 1px solid #333;">Ticker</th>
-            <th style="padding: 12px; border: 1px solid #333;">Name</th>
-            <th style="padding: 12px; border: 1px solid #333;">Current Price</th>
-            <th style="padding: 12px; border: 1px solid #333;">52W High</th>
-            <th style="padding: 12px; border: 1px solid #333;">52W Low</th>
-            <th style="padding: 12px; border: 1px solid #333;">Action</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for stock in stocks %}
-        <tr style="border-bottom: 1px solid #444; transition: background 0.3s ease;"
-            onmouseover="this.style.backgroundColor='rgba(0, 255, 0, 0.2)';"
-            onmouseout="this.style.backgroundColor='';">
-            <td style="padding: 12px; border: 1px solid #333; font-weight: bold;">
-                <a href="{{ url_for('stock_details.stock_page', ticker=stock.ticker) }}" style="color: #00ff00; text-decoration: none; font-weight: bold;">
-                    {{ stock.ticker }}
-                </a>
-            </td>
-            <td style="padding: 12px; border: 1px solid #333;">{{ stock.name }}</td>
-            <td style="padding: 12px; border: 1px solid #333; font-weight: bold; color: #00ff00;">
-                ₹{{ stock.price }}
-            </td>
-            <td style="padding: 12px; border: 1px solid #333;">₹{{ stock.high_52 }}</td>
-            <td style="padding: 12px; border: 1px solid #333;">₹{{ stock.low_52 }}</td>
-            <td style="padding: 12px; border: 1px solid #333;">
-                <form method="post" action="{{ url_for('transactions.buy_stock') }}" style="display: flex; gap: 10px; align-items: center; justify-content: center;">
-                    <input type="hidden" name="ticker" value="{{ stock.ticker }}">
-                    <input type="number" name="quantity" min="1" required 
-                           style="width: 60px; padding: 6px; border: 1px solid #666; border-radius: 5px; background: #333; color: white; text-align: center;">
-                    <button type="submit" 
-                            style="background-color: #00ff00; color: black; font-weight: bold; border: none; padding: 8px 14px; cursor: pointer; border-radius: 5px;">
-                        Buy
-                    </button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buy Stocks</title>
+    <style>
+        /* Dark mode styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+        }
+        h2 {
+            color: #00ff00;
+        }
+        table {
+            width: 90%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background: #1e1e1e;
+            color: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #444;
+        }
+        th {
+            background: #222;
+            cursor: pointer;
+        }
+        tbody tr:hover {
+            background: rgba(0, 255, 0, 0.2);
+        }
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        .filter-btn, .high-low-btn {
+            display: block;
+            margin: 10px auto;
+            padding: 12px 18px;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .filter-btn {
+            background-color: #ff6600;
+            color: white;
+        }
+        .filter-btn:hover {
+            background-color: #cc5200;
+        }
+        .high-low-btn {
+            background-color: #ffcc00;
+            color: black;
+        }
+        .high-low-btn:hover {
+            background-color: #d4a300;
+        }
+        .input-box {
+            padding: 8px;
+            width: 80px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #333;
+            color: white;
+            text-align: center;
+        }
+        .input-box::placeholder {
+            color: #bbb;
+        }
+        #stock-results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>📈 Buy Stocks</h2>
+
+    <!-- Filter Stocks Section -->
+<h3>🔍 Filter Stocks</h3>
+
+<div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
+    <label for="min_eps">Min EPS:</label>
+    <input type="number" id="min_eps" class="input-box" placeholder="Min EPS" value="0">
+
+    <label for="max_pe">Max P/E:</label>
+    <input type="number" id="max_pe" class="input-box" placeholder="Max P/E" value="100">
+
+    <button class="filter-btn" onclick="filterStocks()">🔎 Apply Filter</button>
+</div>
+
+
+    <!-- Table of Stocks -->
+    <table id="stocksTable">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)">Ticker 🔼</th>
+                <th>Name</th>
+                <th onclick="sortTable(2)">Current Price 🔼</th>
+                <th onclick="sortTable(3)">52W High 🔼</th>
+                <th onclick="sortTable(4)">52W Low 🔼</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stock in stocks %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('stock_details.stock_page', ticker=stock.ticker) }}" style="color: #00ff00; text-decoration: none; font-weight: bold;">
+                        {{ stock.ticker }}
+                    </a>
+                </td>
+                <td>{{ stock.name }}</td>
+                <td>₹{{ stock.price }}</td>
+                <td>₹{{ stock.high_52 }}</td>
+                <td>₹{{ stock.low_52 }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('transactions.buy_stock') }}" style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                        <input type="hidden" name="ticker" value="{{ stock.ticker }}">
+                        <input type="number" name="quantity" min="1" required style="width: 60px; padding: 6px; border: 1px solid #666; border-radius: 5px; background: #333; color: white; text-align: center;">
+                        <button type="submit" style="background-color: #00ff00; color: black; font-weight: bold; border: none; padding: 8px 14px; cursor: pointer; border-radius: 5px;">Buy</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Results Section -->
+    <div id="stock-results"></div>
+
+    <script>
+        function fetchHighLowStocks() {
+            fetch("{{ url_for('buy_stocks.high_stocks') }}")
+                .then(response => response.json())
+                .then(data => {
+                    let html = "<h3>📊 52-Week High/Low Stocks</h3><table><tr><th>Ticker</th><th>Name</th><th>52W High</th><th>52W Low</th></tr>";
+                    data.forEach(stock => {
+                        html += `<tr><td>${stock.ticker}</td><td>${stock.name}</td><td>₹${stock.high_52}</td><td>₹${stock.low_52}</td></tr>`;
+                    });
+                    html += "</table>";
+                    document.getElementById("stock-results").innerHTML = html;
+                })
+                .catch(error => console.error("Error fetching high/low stocks:", error));
+        }
+
+        function filterStocks() {
+            let min_eps = document.getElementById("min_eps").value;
+            let max_pe = document.getElementById("max_pe").value;
+
+            fetch("{{ url_for('buy_stocks.filter_stocks') }}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ min_eps: min_eps, max_pe: max_pe })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    let html = "<h3>🔎 Filtered Stocks</h3><table><tr><th>Ticker</th><th>Name</th><th>EPS Growth</th><th>P/E Ratio</th></tr>";
+                    data.forEach(stock => {
+                        html += `<tr><td>${stock.ticker}</td><td>${stock.name}</td><td>${stock.eps}%</td><td>${stock.pe}</td></tr>`;
+                    });
+                    html += "</table>";
+                    document.getElementById("stock-results").innerHTML = html;
+                })
+                .catch(error => console.error("Error filtering stocks:", error));
+        }
+
+        function sortTable(n) {
+            let table = document.getElementById("stocksTable");
+            let rows = Array.from(table.getElementsByTagName("tr")).slice(1);
+            let ascending = sortDirections[n];
+
+            rows.sort((rowA, rowB) => {
+                let cellA = rowA.getElementsByTagName("td")[n].innerText.trim();
+                let cellB = rowB.getElementsByTagName("td")[n].innerText.trim();
+
+                let numA = parseFloat(cellA.replace(/[^0-9.-]/g, ""));
+                let numB = parseFloat(cellB.replace(/[^0-9.-]/g, ""));
+
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return ascending ? numA - numB : numB - numA;
+                } else {
+                    return ascending ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+                }
+            });
+
+            rows.forEach(row => table.appendChild(row));
+            sortDirections[n] = !ascending;
+        }
+
+        let sortDirections = [true, true, true, true, true];
+    </script>
+
+</body>
+</html>

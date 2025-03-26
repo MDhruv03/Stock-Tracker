@@ -113,11 +113,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION get_high_low_stocks()
+CREATE OR REPLACE FUNCTION get_high_stocks()
 RETURNS TABLE (ticker VARCHAR, name VARCHAR, high_52 NUMERIC, low_52 NUMERIC) AS $$
 BEGIN
     RETURN QUERY
-    SELECT ticker, name, high_52, low_52 FROM Stock ORDER BY high_52 DESC;
+    SELECT ticker, name, high_52, low_52
+    FROM Stock
+    WHERE high_52 >= 2.1 * low_52  -- ✅ 52W High is at least 2.1x the Low
+    ORDER BY high_52 DESC;         -- ✅ Sort by highest high_52 first
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_low_stocks()
+RETURNS TABLE (ticker VARCHAR, name VARCHAR, high_52 NUMERIC, low_52 NUMERIC) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT ticker, name, high_52, low_52
+    FROM Stock
+    WHERE low_52 = low_52  -- ✅ Ensures low_52 is unchanged (1x itself)
+    ORDER BY low_52 ASC;   -- ✅ Sort by lowest low_52 first
 END;
 $$ LANGUAGE plpgsql;
 
@@ -179,6 +193,7 @@ from portfolio import portfolio
 from transactions import transactions
 from stock_details import stock_details
 from models import User
+from buy_stocks import buy_stocks
 
 # -------------------------------
 # Initialize Flask App
@@ -252,6 +267,7 @@ app.register_blueprint(auth)
 app.register_blueprint(portfolio, url_prefix="/portfolio")
 app.register_blueprint(transactions, url_prefix="/transactions")
 app.register_blueprint(stock_details, url_prefix="/stock")
+app.register_blueprint(buy_stocks, url_prefix="/buy-stocks")
 
 # -------------------------------
 # Run Flask App
