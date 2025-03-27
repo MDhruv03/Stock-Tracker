@@ -1,13 +1,13 @@
-import asyncpg
-import asyncio
+import requests
 
-DB_URL = "postgresql://neondb_owner:npg_2VY3IFQqtPlj@ep-bitter-tooth-a5v8si2g-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require"
+url = "http://127.0.0.1:5000/portfolio/buy-stocks"  # Update if needed
+response = requests.get(url)
 
-async def fetch_brokers():
-    conn = await asyncpg.connect(DB_URL)
-    brokers = await conn.fetch("SELECT * FROM Brokers")
-    await conn.close()
-    return [dict(broker) for broker in brokers]
+print("Status Code:", response.status_code)
+print("Response Text:", response.text)
 
-brokers = asyncio.run(fetch_brokers())
-print(brokers)
+try:
+    data = response.json()
+    print("JSON Response:", data)
+except requests.exceptions.JSONDecodeError:
+    print("Error: Response is not JSON format.")

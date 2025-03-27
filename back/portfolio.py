@@ -54,3 +54,31 @@ def update_prices():
     
     return redirect(url_for("portfolio.view_portfolio"))  # ✅ Refresh portfolio page
 
+@portfolio.route("/allocation")
+@login_required
+def get_high_allocations():
+    """Fetch stocks where allocation percentage > 50%"""
+    user_id = current_user.user_id
+    query = """
+    SELECT user_id, stock_ticker AS stock_id, 
+           (stock_value / total_value) * 100 AS allocation_percentage
+    FROM (
+        SELECT t.user_id, t.stock_ticker, 
+               SUM(t.quantity * s.price) AS stock_value, 
+               (SELECT SUM(quantity * price) FROM Transactions 
+                JOIN Stock ON Transactions.stock_ticker = Stock.ticker 
+                WHERE user_id = t.user_id) AS total_value
+        FROM Transactions t
+        JOIN Stock s ON t.stock_ticker = s.ticker
+        GROUP BY t.user_id, t.stock_ticker
+    ) AS portfolio_alloc
+    WHERE (stock_value / total_value) * 100 > 50;
+    """
+    
+    results = fetch_data(query, (user_id,))
+    return jsonify(results)
+
+
+
+
+

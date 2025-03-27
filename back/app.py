@@ -181,6 +181,40 @@ BEGIN
     WHERE p.user_id = p_user_id;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_portfolio_summary(user_id_param INT)
+RETURNS TABLE(stock_name TEXT, total_shares INT, total_value NUMERIC) AS $$
+BEGIN
+    RETURN QUERY 
+    SELECT s.name, SUM(t.quantity) AS total_shares, 
+           SUM(t.quantity * sp.price) AS total_value
+    FROM Transactions t
+    JOIN Stock s ON t.stock_id = s.stock_id
+    JOIN Stock_Prices sp ON s.stock_id = sp.stock_id
+    WHERE t.user_id = user_id_param AND sp.date = CURRENT_DATE
+    GROUP BY s.name;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_moving_averages(stock_ticker TEXT)
+RETURNS TABLE (
+    stock_id INT,
+    ticker TEXT,
+    moving_avg_50 DECIMAL(10,2),
+    moving_avg_200 DECIMAL(10,2)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        s.stock_id, s.ticker,
+        (SELECT AVG(price) FROM Stock_Prices WHERE stock_id = s.stock_id AND date >= CURRENT_DATE - INTERVAL '50 days') AS moving_avg_50,
+        (SELECT AVG(price) FROM Stock_Prices WHERE stock_id = s.stock_id AND date >= CURRENT_DATE - INTERVAL '200 days') AS moving_avg_200
+    FROM Stock s
+    WHERE s.ticker = stock_ticker;
+END;
+$$ LANGUAGE plpgsql;
+
+
 """
 
 
