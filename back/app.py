@@ -149,9 +149,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION get_user_portfolio(p_user_id INT)
+
+CREATE OR REPLACE FUNCTION get_user_portfolio(user_id_param INT)
 RETURNS TABLE (
-    stock_ticker VARCHAR(15),
+    stock_ticker VARCHAR(10),
     stock_name VARCHAR(255),
     quantity INT,
     avg_price NUMERIC(10,2),
@@ -159,12 +160,15 @@ RETURNS TABLE (
     total_investment NUMERIC(15,2),
     current_value NUMERIC(15,2),
     profit_loss NUMERIC(15,2),
-    profit_loss_pct NUMERIC(6,2)
+    profit_loss_pct NUMERIC(6,2),
+    total_portfolio_investment NUMERIC(15,2),
+    total_portfolio_value NUMERIC(15,2),
+    total_portfolio_pnl NUMERIC(15,2)
 ) AS $$
 BEGIN
     RETURN QUERY
     SELECT 
-        p.stock_ticker,
+        s.ticker AS stock_ticker,
         s.name AS stock_name,
         p.quantity,
         p.avg_price,
@@ -172,15 +176,27 @@ BEGIN
         (p.quantity * p.avg_price) AS total_investment,
         (p.quantity * s.price) AS current_value,
         (p.quantity * s.price) - (p.quantity * p.avg_price) AS profit_loss,
-        CASE 
-            WHEN (p.quantity * p.avg_price) = 0 THEN 0
-            ELSE ROUND((((p.quantity * s.price) - (p.quantity * p.avg_price)) / (p.quantity * p.avg_price)) * 100, 2)
-        END AS profit_loss_pct
+        ROUND(
+            ((p.quantity * s.price) - (p.quantity * p.avg_price)) / NULLIF((p.quantity * p.avg_price), 0) * 100, 
+            2
+        ) AS profit_loss_pct,
+        (SELECT SUM(p2.quantity * p2.avg_price) 
+         FROM Portfolio p2 WHERE p2.user_id = user_id_param) AS total_portfolio_investment,
+        (SELECT SUM(p2.quantity * s2.price) 
+         FROM Portfolio p2 
+         JOIN Stock s2 ON p2.stock_ticker = s2.ticker 
+         WHERE p2.user_id = user_id_param) AS total_portfolio_value,
+        (SELECT SUM((p2.quantity * s2.price) - (p2.quantity * p2.avg_price)) 
+         FROM Portfolio p2 
+         JOIN Stock s2 ON p2.stock_ticker = s2.ticker 
+         WHERE p2.user_id = user_id_param) AS total_portfolio_pnl
     FROM Portfolio p
     JOIN Stock s ON p.stock_ticker = s.ticker
-    WHERE p.user_id = p_user_id;
+    WHERE p.user_id = user_id_param;
 END;
 $$ LANGUAGE plpgsql;
+
+
 
 CREATE OR REPLACE FUNCTION get_portfolio_summary(user_id_param INT)
 RETURNS TABLE(stock_name TEXT, total_shares INT, total_value NUMERIC) AS $$

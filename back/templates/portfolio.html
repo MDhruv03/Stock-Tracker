@@ -1,158 +1,304 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Portfolio</title>
-    <style>
-        /* Dark mode styles */
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #121212;
-            color: #ffffff;
-            text-align: center;
-            padding: 20px;
-        }
-        h2 {
-            color: #00ff00;
-        }
-        table {
-            width: 90%;
-            margin: 20px auto;
-            border-collapse: collapse;
-            background: #1e1e1e;
-            color: white;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        th, td {
-            padding: 12px;
-            text-align: center;
-            border: 1px solid #444;
-        }
-        th {
-            background: #222;
-        }
-        tbody tr:hover {
-            background: rgba(0, 255, 0, 0.2);
-        }
-        .profit {
-            color: #00ff00;
-            font-weight: bold;
-        }
-        .loss {
-            color: #ff4c4c;
-            font-weight: bold;
-        }
-        .btn {
-            padding: 10px 15px;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            border-radius: 5px;
-            transition: 0.3s;
-        }
-        .buy-more, .update-btn, .allocation-btn {
-            display: block;
-            margin: 10px auto;
-            padding: 12px 18px;
-            font-weight: bold;
-            text-decoration: none;
-            border-radius: 5px;
-            text-align: center;
-        }
-        .buy-more {
-            background-color: #00ff00;
-            color: black;
-        }
-        .buy-more:hover {
-            background-color: #00cc00;
-        }
-        .update-btn {
-            background-color: #007bff;
-            color: white;
-        }
-        .update-btn:hover {
-            background-color: #0056b3;
-        }
-        .allocation-btn {
-            background-color: #ff9900;
-            color: white;
-        }
-        .allocation-btn:hover {
-            background-color: #cc7700;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Portfolio</title>
+  <style>
+    /* Dark mode styles */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      text-align: center;
+      padding: 20px;
+    }
+    h2, h3 {
+      color: #00ff00;
+    }
+    table {
+      width: 90%;
+      margin: 20px auto;
+      border-collapse: collapse;
+      background: #1e1e1e;
+      color: white;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border: 1px solid #444;
+    }
+    th {
+      background: #222;
+    }
+    tbody tr:hover {
+      background: rgba(0, 255, 0, 0.2);
+    }
+    .profit {
+      color: #00ff00;
+      font-weight: bold;
+    }
+    .loss {
+      color: #ff4c4c;
+      font-weight: bold;
+    }
+    .btn {
+      padding: 10px 15px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 5px;
+      transition: 0.3s;
+    }
+    .buy-more, .update-btn, .allocation-btn {
+      display: block;
+      margin: 10px auto;
+      padding: 12px 18px;
+      font-weight: bold;
+      text-decoration: none;
+      border-radius: 5px;
+      text-align: center;
+    }
+    .buy-more {
+      background-color: #00ff00;
+      color: black;
+    }
+    .buy-more:hover {
+      background-color: #00cc00;
+    }
+    .update-btn {
+      background-color: #007bff;
+      color: white;
+    }
+    .update-btn:hover {
+      background-color: #0056b3;
+    }
+    .allocation-btn {
+      background-color: #ff9900;
+      color: white;
+    }
+    .allocation-btn:hover {
+      background-color: #cc7700;
+    }
+    /* Portfolio graph container */
+    #portfolio-chart {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    canvas#portfolioGraph {
+      max-width: 100%;
+      max-height: 400px;
+    }
+    /* Transaction History Section */
+    #transaction-history {
+      width: 90%;
+      margin: 20px auto;
+      display: none;
+    }
+    #transaction-history table {
+      width: 100%;
+      margin: 0 auto;
+    }
+  </style>
 </head>
 <body>
 
-    <h2>📊 My Portfolio</h2>
-    <p>💰 Balance: ₹ <strong>{{ current_user.balance }}</strong></p>
+  <h2>📊 My Portfolio</h2>
+  <p>💰 Balance: ₹ <strong>{{ current_user.balance }}</strong></p>
 
+  <!-- Total Portfolio Values -->
+  <h3>📈 Total Portfolio Summary</h3>
+  <p>💵 Total Investment: ₹ <strong>{{ total_investment }}</strong></p>
+  <p>📊 Current Value: ₹ <strong>{{ total_current_value }}</strong></p>
+  <p>📈 Total Profit/Loss: 
+    <strong class="{% if total_pnl >= 0 %}profit{% else %}loss{% endif %}">
+      ₹{{ total_pnl }} ({{ total_pnl_pct }}%)
+    </strong>
+  </p>
+
+  <!-- Portfolio Stocks Table -->
+  <table>
+    <thead>
+      <tr>
+        <th>Ticker</th>
+        <th>Name</th>
+        <th>Quantity</th>
+        <th>Avg Price</th>
+        <th>Current Price</th>
+        <th>Total Investment</th>
+        <th>Current Value</th>
+        <th>Profit/Loss</th>
+        <th>P/L %</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for stock in stocks %}
+      <tr>
+        <td>{{ stock.stock_ticker }}</td>
+        <td>{{ stock.stock_name }}</td>
+        <td>{{ stock.quantity }}</td>
+        <td>₹{{ stock.avg_price }}</td>
+        <td>₹{{ stock.current_price }}</td>
+        <td>₹{{ stock.total_investment }}</td>
+        <td>₹{{ stock.current_value }}</td>
+        <td class="{% if stock.profit_loss >= 0 %}profit{% else %}loss{% endif %}">
+          ₹{{ stock.profit_loss }}
+        </td>
+        <td class="{% if stock.profit_loss_pct >= 0 %}profit{% else %}loss{% endif %}">
+          {{ stock.profit_loss_pct }}%
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Update Prices Button -->
+  <form action="{{ url_for('portfolio.update_prices') }}" method="post">
+    <button type="submit" class="update-btn">🔄 Update Stock Prices</button>
+  </form>
+
+  <!-- Buy More Stocks Button -->
+  <a href="{{ url_for('portfolio.buy_stocks') }}" class="buy-more">➕ Buy More Stocks</a>
+
+  <!-- Fetch Allocation Button -->
+  <button id="allocation-btn" class="allocation-btn">📊 Show Allocation ( > 50% )</button>
+  <!-- Portfolio Allocation Table -->
+  <div id="allocation-results"></div>
+
+  <!-- Historical Portfolio Graph -->
+  <h3>📉 Portfolio Value Over Time</h3>
+  <div id="portfolio-chart">
+    <canvas id="portfolioGraph"></canvas>
+  </div>
+
+  <!-- Transaction History Section -->
+  <h3>🔄 Transaction History</h3>
+  <button id="toggle-transactions" class="update-btn">📜 Show Transactions</button>
+  <div id="transaction-history">
     <table>
-        <thead>
-            <tr>
-                <th>Ticker</th>
-                <th>Name</th>
-                <th>Quantity</th>
-                <th>Avg Price</th>
-                <th>Current Price</th>
-                <th>Total Investment</th>
-                <th>Current Value</th>
-                <th>Profit/Loss</th>
-                <th>P/L %</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for stock in stocks %}
-            <tr>
-                <td>{{ stock.stock_ticker }}</td>
-                <td>{{ stock.stock_name }}</td>
-                <td>{{ stock.quantity }}</td>
-                <td>₹{{ stock.avg_price }}</td>
-                <td>₹{{ stock.current_price }}</td>
-                <td>₹{{ stock.total_investment }}</td>
-                <td>₹{{ stock.current_value }}</td>
-                <td class="{% if stock.profit_loss >= 0 %}profit{% else %}loss{% endif %}">
-                    ₹{{ stock.profit_loss }}
-                </td>
-                <td class="{% if stock.profit_loss_pct >= 0 %}profit{% else %}loss{% endif %}">
-                    {{ stock.profit_loss_pct }}%
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Ticker</th>
+          <th>Type</th>
+          <th>Quantity</th>
+          <th>Price</th>
+          <th>Amount</th>
+          <th>Realized P&L</th>
+          <th>Unrealized P&L</th>
+        </tr>
+      </thead>
+      <tbody id="transaction-table-body">
+        <tr><td colspan="8">Loading...</td></tr>
+      </tbody>
     </table>
+  </div>
 
-    <!-- Update Prices Button -->
-    <form action="{{ url_for('portfolio.update_prices') }}" method="post">
-        <button type="submit" class="update-btn">🔄 Update Stock Prices</button>
-    </form>
-
-    <!-- Buy More Stocks Button -->
-    <a href="{{ url_for('portfolio.buy_stocks') }}" class="buy-more">➕ Buy More Stocks</a>
-
-    <!-- Fetch Allocation Button -->
-    <button id="allocation-btn" class="allocation-btn">📊 Show Allocation ( > 50% )</button>
-
-    <!-- Portfolio Allocation Table -->
-    <div id="allocation-results"></div>
-
-    <script>
-        document.getElementById("allocation-btn").addEventListener("click", function() {
-            fetch("{{ url_for('portfolio.get_high_allocations') }}")
-            .then(response => response.json())
-            .then(data => {
-                let resultHTML = "<h3>🔹 Portfolio Allocation ( > 50% )</h3><table border='1'><tr><th>User ID</th><th>Stock ID</th><th>Allocation %</th></tr>";
-                data.forEach(item => {
-                    resultHTML += `<tr><td>${item.user_id}</td><td>${item.stock_id}</td><td>${item.allocation_percentage}%</td></tr>`;
-                });
-                resultHTML += "</table>";
-                document.getElementById("allocation-results").innerHTML = resultHTML;
-            })
-            .catch(error => console.error("Error fetching allocation data:", error));
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Allocation Section
+    document.getElementById("allocation-btn").addEventListener("click", function() {
+      fetch("{{ url_for('portfolio.get_high_allocations') }}")
+      .then(response => response.json())
+      .then(data => {
+        let resultHTML = "<h3>🔹 Portfolio Allocation ( > 50% )</h3><table border='1'><tr><th>User ID</th><th>Stock ID</th><th>Allocation %</th></tr>";
+        data.forEach(item => {
+          resultHTML += `<tr><td>${item.user_id}</td><td>${item.stock_id}</td><td>${item.allocation_percentage}%</td></tr>`;
         });
-    </script>
+        resultHTML += "</table>";
+        document.getElementById("allocation-results").innerHTML = resultHTML;
+      })
+      .catch(error => console.error("Error fetching allocation data:", error));
+    });
+
+    // Historical Portfolio Graph
+    fetch("{{ url_for('portfolio.get_historical_portfolio_value') }}")
+    .then(response => response.json())
+    .then(data => {
+      console.log("Historical Portfolio Data:", data);
+      if (!data.history || data.history.length === 0) {
+        document.getElementById("portfolioGraph").outerHTML = "<p>No historical data available.</p>";
+        return;
+      }
+      
+      let dates = data.history.map(entry => entry.date);
+      let values = data.history.map(entry => entry.portfolio_value);
+      
+      // Prevent rendering if all values are zero
+      if (values.every(v => v === 0)) {
+        document.getElementById("portfolioGraph").outerHTML = "<p>No valid portfolio data to display.</p>";
+        return;
+      }
+      
+      new Chart(document.getElementById("portfolioGraph"), {
+        type: "line",
+        data: {
+          labels: dates,
+          datasets: [{
+            label: "Portfolio Value (₹)",
+            data: values,
+            borderColor: "#00ff00",
+            backgroundColor: "rgba(0, 255, 0, 0.2)",
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { type: "category", title: { display: true, text: "Date" } },
+            y: { beginAtZero: false, title: { display: true, text: "Portfolio Value (₹)" } }
+          }
+        }
+      });
+    })
+    .catch(error => console.error("Error fetching historical data:", error));
+
+    // Transaction History Section
+    document.getElementById("toggle-transactions").addEventListener("click", function () {
+      let historyDiv = document.getElementById("transaction-history");
+      if (historyDiv.style.display === "none") {
+        historyDiv.style.display = "block";
+        loadTransactions();
+      } else {
+        historyDiv.style.display = "none";
+      }
+    });
+
+    function loadTransactions() {
+      fetch("{{ url_for('portfolio.get_transaction_history') }}")
+      .then(response => response.json())
+      .then(data => {
+        console.log("Transaction Data:", data);
+        let tableBody = document.getElementById("transaction-table-body");
+        tableBody.innerHTML = "";
+        if (data.length === 0) {
+          tableBody.innerHTML = "<tr><td colspan='8'>No transactions found.</td></tr>";
+          return;
+        }
+        data.forEach(tx => {
+          let row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${tx.date}</td>
+            <td>${tx.stock_ticker}</td>
+            <td>${tx.type}</td>
+            <td>${tx.quantity}</td>
+            <td>₹${tx.price.toFixed(2)}</td>
+            <td>₹${tx.transaction_amount.toFixed(2)}</td>
+            <td class="${tx.realized_pnl >= 0 ? 'profit' : 'loss'}">₹${tx.realized_pnl.toFixed(2)}</td>
+            <td class="${tx.unrealized_pnl >= 0 ? 'profit' : 'loss'}">₹${tx.unrealized_pnl.toFixed(2)}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      })
+      .catch(error => {
+        console.error("Error fetching transactions:", error);
+        document.getElementById("transaction-table-body").innerHTML = "<tr><td colspan='8'>Error loading data.</td></tr>";
+      });
+    }
+  </script>
 
 </body>
 </html>
