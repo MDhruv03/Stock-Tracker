@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Trade | Stock Market</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/buy_stocks.css') }}">
+</head>
+<body>
+   <!-- Flash Messages -->
+   {% with messages = get_flashed_messages(with_categories=true) %}
+   {% if messages %}
+       <ul class="flashes">
+           {% for category, message in messages %}
+               <li class="{{ category }}">{{ message }}</li>
+           {% endfor %}
+       </ul>
+   {% endif %}
+{% endwith %}
+    <div class="container animate__animated animate__fadeIn">
+        <!-- ... (rest of HTML content) ... -->
+        <header>
+            <h1>🚀 Quantum Trade</h1>
+          </header>
+          
+          <div class="search-section">
+            <h2 class="search-title">🔍 Stock Search & Filter</h2>
+            <div class="filter-controls">
+              <div class="filter-group">
+                <label for="min_eps">Min EPS:</label>
+                <input type="number" id="min_eps" class="input-box" placeholder="0" value="0" min="0">
+              </div>
+              
+              <div class="filter-group">
+                <label for="max_pe">Max P/E:</label>
+                <input type="number" id="max_pe" class="input-box" placeholder="100" value="100" min="0">
+              </div>
+              
+              <button class="btn btn-accent" onclick="filterStocks()">
+                <span>🔎</span> Apply Filters
+              </button>
+            </div>
+            
+            <div id="stock-results" class="empty-state">
+              Apply filters to see matching stocks
+            </div>
+          </div>
+          
+          <div class="stocks-table-container">
+            <table id="stocksTable">
+              <thead>
+                <tr>
+                  <th onclick="sortTable(0, this)">Ticker <span class="sort-indicator">▼</span></th>
+                  <th>Company Name</th>
+                  <th onclick="sortTable(2, this)">Price <span class="sort-indicator">▼</span></th>
+                  <th onclick="sortTable(3, this)">52W High <span class="sort-indicator">▼</span></th>
+                  <th onclick="sortTable(4, this)">52W Low <span class="sort-indicator">▼</span></th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for stock in stocks %}
+                <tr>
+                  <td>
+                    <a href="{{ url_for('stock_details.stock_page', ticker=stock.ticker) }}" class="stock-link">
+                      <span>📊</span> {{ stock.ticker }}
+                    </a>
+                  </td>
+                  <td>{{ stock.name }}</td>
+                  <td>₹{{ stock.price }}</td>
+                  <td>₹{{ stock.high_52 }}</td>
+                  <td>₹{{ stock.low_52 }}</td>
+                  <td>
+                    <form method="post" action="{{ url_for('transactions.buy_stock') }}" class="buy-form">
+                      <input type="hidden" name="ticker" value="{{ stock.ticker }}">
+                      <input type="number" name="quantity" min="1" value="1" required class="buy-input">
+                      <button type="submit" class="buy-btn">Buy</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="analytics-grid">
+            <div class="analytics-card">
+              <div class="analytics-header">
+                <h3 class="analytics-title">🚀 Top Gainers (7D)</h3>
+                <button class="btn btn-secondary" onclick="fetchTopMovers()">
+                  <span>🔄</span> Refresh
+                </button>
+              </div>
+              <div class="analytics-content" id="top-gainers">
+                Loading top gainers...
+              </div>
+            </div>
+            
+            <div class="analytics-card">
+              <div class="analytics-header">
+                <h3 class="analytics-title">📉 Top Losers (7D)</h3>
+                <button class="btn btn-secondary" onclick="fetchTopMovers()">
+                  <span>🔄</span> Refresh
+                </button>
+              </div>
+              <div class="analytics-content" id="top-losers">
+                Loading top losers...
+              </div>
+            </div>
+            
+            <div class="analytics-card">
+              <div class="analytics-header">
+                <h3 class="analytics-title">📈 Highest EPS Growth</h3>
+                <button class="btn btn-secondary" onclick="fetchHighestEPSGrowth()">
+                  <span>🔄</span> Refresh
+                </button>
+              </div>
+              <div class="analytics-content" id="eps-results">
+                Loading EPS growth data...
+              </div>
+            </div>
+            
+            <div class="analytics-card">
+              <div class="analytics-header">
+                <h3 class="analytics-title">💎 Undervalued Stocks</h3>
+                <button class="btn btn-secondary" onclick="fetchUndervaluedStocks()">
+                  <span>🔄</span> Refresh
+                </button>
+              </div>
+              <div class="analytics-content" id="undervalued-results">
+                Loading undervalued stocks...
+              </div>
+            </div>
+            
+            <div class="analytics-card">
+              <div class="analytics-header">
+                <h3 class="analytics-title">📊 Most Traded (Volume)</h3>
+                <button class="btn btn-secondary" onclick="fetchMostTraded()">
+                  <span>🔄</span> Refresh
+                </button>
+              </div>
+              <div class="analytics-content" id="traded-results">
+                Loading volume data...
+              </div>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 2rem;">
+            <button class="btn btn-primary" onclick="updatePrices()">
+              <span>⚡</span> Update All Prices
+            </button>
+          </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/buy_stocks.js') }}"></script>
+</body>
+</html>

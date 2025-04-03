@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="base-url" content="{{ request.url_root[:-1] }}">
+    <title>Portfolio Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/portfolio.css') }}">
+    <style>
+        /* Sell Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            margin: 10% auto;
+            padding: 1.5rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .close {
+            color: var(--text-secondary);
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: var(--text);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        .form-group input:read-only {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-secondary);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+            gap: 1rem;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e0314b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 56, 96, 0.3);
+        }
+
+        .sell-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .sell-btn:hover {
+            background: #e0314b;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(255, 56, 96, 0.2);
+        }
+    </style>
+</head>
+<body>
+   <!-- Flash Messages -->
+   {% with messages = get_flashed_messages(with_categories=true) %}
+   {% if messages %}
+       <ul class="flashes">
+           {% for category, message in messages %}
+               <li class="{{ category }}">{{ message }}</li>
+           {% endfor %}
+       </ul>
+   {% endif %}
+{% endwith %}
+    <div class="container animate__animated animate__fadeIn">
+        <header>
+            <h1>📊 Portfolio Dashboard</h1>
+            <div class="balance-card">
+              <h3>Available Balance</h3>
+              <div class="amount">₹{{ current_user.balance }}</div>
+            </div>
+          </header>
+          
+          <div class="summary-grid">
+            <div class="summary-card">
+              <h3>Total Investment</h3>
+              <div class="value">₹{{ total_investment }}</div>
+            </div>
+            
+            <div class="summary-card">
+              <h3>Current Value</h3>
+              <div class="value">₹{{ total_current_value }}</div>
+            </div>
+            
+            <div class="summary-card">
+              <h3>Total Profit/Loss</h3>
+              <div class="value {% if total_pnl >= 0 %}profit{% else %}loss{% endif %}">
+                ₹{{ total_pnl }} ({{ total_pnl_pct }}%)
+              </div>
+            </div>
+          </div>
+          
+          <div class="action-buttons">
+            <form action="{{ url_for('portfolio.update_prices') }}" method="post">
+              <button type="submit" class="btn btn-secondary">
+                <span>🔄</span> Update Prices
+              </button>
+            </form>
+            
+            <a href="{{ url_for('portfolio.buy_stocks') }}" class="btn btn-primary">
+              <span>➕</span> Buy Stocks
+            </a>
+            
+            <button id="allocation-btn" class="btn btn-warning">
+              <span>📊</span> Show Allocation
+            </button>
+          </div>
+          
+          <div class="portfolio-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Name</th>
+                  <th>Quantity</th>
+                  <th>Avg Price</th>
+                  <th>Current Price</th>
+                  <th>Investment</th>
+                  <th>Current Value</th>
+                  <th>P/L</th>
+                  <th>P/L %</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for stock in stocks %}
+                <tr>
+                  <td>{{ stock.stock_ticker }}</td>
+                  <td>{{ stock.stock_name }}</td>
+                  <td>{{ stock.quantity }}</td>
+                  <td>₹{{ stock.avg_price }}</td>
+                  <td>₹{{ stock.current_price }}</td>
+                  <td>₹{{ stock.total_investment }}</td>
+                  <td>₹{{ stock.current_value }}</td>
+                  <td class="{% if stock.profit_loss >= 0 %}profit{% else %}loss{% endif %}">
+                    ₹{{ stock.profit_loss }}
+                  </td>
+                  <td class="{% if stock.profit_loss_pct >= 0 %}profit{% else %}loss{% endif %}">
+                    {{ stock.profit_loss_pct }}%
+                  </td>
+                  <td>
+                    <button class="sell-btn" onclick="openSellModal('{{ stock.stock_ticker }}', '{{ stock.stock_name }}', '{{ stock.quantity }}', '{{ stock.current_price }}')">Sell</button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Sell Stock Modal -->
+          <div id="sellModal" class="modal">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h2>Sell Stock</h2>
+                <span class="close" onclick="closeSellModal()">&times;</span>
+              </div>
+              <form id="sellForm">
+                <div class="form-group">
+                  <label for="sellTicker">Ticker</label>
+                  <input type="text" id="sellTicker" readonly>
+                </div>
+                <div class="form-group">
+                  <label for="sellName">Stock Name</label>
+                  <input type="text" id="sellName" readonly>
+                </div>
+                <div class="form-group">
+                  <label for="sellPrice">Current Price (₹)</label>
+                  <input type="number" id="sellPrice" readonly>
+                </div>
+                <div class="form-group">
+                  <label for="sellQuantity">Quantity (Available: <span id="availableQuantity"></span>)</label>
+                  <input type="number" id="sellQuantity" min="1" required>
+                </div>
+                <div class="form-group">
+                  <label for="sellTotal">Total Amount (₹)</label>
+                  <input type="number" id="sellTotal" readonly>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" onclick="closeSellModal()">Cancel</button>
+                  <button type="button" class="btn btn-danger" onclick="submitSell()">Sell</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          
+          <div id="allocation-container" class="allocation-container">
+            <div class="allocation-header">
+              <div class="allocation-title">Portfolio Allocation</div>
+            </div>
+            <div id="allocation-results"></div>
+          </div>
+          
+          <div class="chart-container">
+            <div class="chart-header">
+                <h3 class="chart-title">Portfolio Value Over Time</h3>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="portfolioGraph"></canvas>
+            </div>
+        </div>
+          
+          <div class="transaction-history">
+            <div class="transaction-header" id="toggle-transactions">
+              <div class="transaction-title">Transaction History</div>
+              <div>▼</div>
+            </div>
+            <div id="transaction-history">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Ticker</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Amount</th>
+                    <th>Realized P&L</th>
+                    <th>Unrealized P&L</th>
+                  </tr>
+                </thead>
+                <tbody id="transaction-table-body">
+                  <tr><td colspan="8">Click to load transactions</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <script src="{{ url_for('static', filename='js/portfolio.js') }}"></script>
+    <script>
+        // Sell Stock Modal Functions
+        function openSellModal(ticker, name, quantity, price) {
+            document.getElementById('sellTicker').value = ticker;
+            document.getElementById('sellName').value = name;
+            document.getElementById('sellPrice').value = price;
+            document.getElementById('availableQuantity').textContent = quantity;
+            document.getElementById('sellQuantity').max = quantity;
+            document.getElementById('sellQuantity').value = 1;
+            document.getElementById('sellTotal').value = price;
+            
+            document.getElementById('sellModal').style.display = 'block';
+            
+            // Calculate total when quantity changes
+            document.getElementById('sellQuantity').addEventListener('input', function() {
+                const quantity = parseFloat(this.value) || 0;
+                const price = parseFloat(document.getElementById('sellPrice').value) || 0;
+                document.getElementById('sellTotal').value = (quantity * price).toFixed(2);
+            });
+        }
+        
+        function closeSellModal() {
+            document.getElementById('sellModal').style.display = 'none';
+        }
+        
+        function submitSell() {
+            const ticker = document.getElementById('sellTicker').value;
+            const quantity = parseFloat(document.getElementById('sellQuantity').value);
+            const price = parseFloat(document.getElementById('sellPrice').value);
+            const maxQuantity = parseFloat(document.getElementById('availableQuantity').textContent);
+            
+            if (quantity <= 0) {
+                alert('Quantity must be greater than 0');
+                return;
+            }
+            
+            if (quantity > maxQuantity) {
+                alert(`You cannot sell more than ${maxQuantity} shares`);
+                return;
+            }
+            
+            // Confirm before selling
+            if (!confirm(`Are you sure you want to sell ${quantity} shares of ${ticker} at ₹${price} per share?`)) {
+                return;
+            }
+            
+            // Send sell request to server
+            fetch('{{ url_for("portfolio.sell_stock") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ticker: ticker,
+                    quantity: quantity,
+                    price: price
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.message || 'Failed to sell stock'); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Stock sold successfully!');
+                    closeSellModal();
+                    window.location.reload();
+                } else {
+                    throw new Error(data.message || 'Unknown error occurred');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(error.message || 'An error occurred while selling the stock');
+            });
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('sellModal');
+            if (event.target == modal) {
+                closeSellModal();
+            }
+        }
+    </script>
+</body>
+</html>

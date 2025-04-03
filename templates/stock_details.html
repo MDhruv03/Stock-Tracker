@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ stock.name }} ({{ stock.ticker }}) | Quantum Trade</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stock_details.css') }}">
+</head>
+<body>
+    <div class="container animate__animated animate__fadeIn">
+        <!-- Header Section -->
+        <header>
+            <h1>📊 {{ stock.name }} <span class="ticker-symbol">({{ stock.ticker }})</span></h1>
+            <a href="/portfolio/buy-stocks" class="back-button">← Back to Stocks</a>
+        </header>
+
+        <!-- Price Summary -->
+        <div class="price-summary">
+            <div class="current-price">₹{{ "%.2f"|format(stock.price) if stock.price else 'N/A' }}</div>
+            <div class="price-range">
+                <span class="high">52W High: ₹{{ "%.2f"|format(stock.high_52) if stock.high_52 else 'N/A' }}</span>
+                <span class="low">52W Low: ₹{{ "%.2f"|format(stock.low_52) if stock.low_52 else 'N/A' }}</span>
+            </div>
+        </div>
+
+        <!-- Price Chart -->
+        <section class="chart-section">
+            <div class="section-header">
+                <h2>Price History</h2>
+                <div class="timeframe-tabs">
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Key Metrics -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-value">{{ market_analysis.pe_ratio if market_analysis and market_analysis.pe_ratio else 'N/A' }}</div>
+                <div class="metric-label">P/E Ratio</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ market_analysis.dividend_yield if market_analysis and market_analysis.dividend_yield else '0' }}%</div>
+                <div class="metric-label">Dividend Yield</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">₹{{ market_analysis.market_cap if market_analysis and market_analysis.market_cap else 'N/A' }}M</div>
+                <div class="metric-label">Market Cap</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ market_analysis.volume if market_analysis and market_analysis.volume else 'N/A' }}</div>
+                <div class="metric-label">Volume</div>
+            </div>
+        </section>
+
+        <!-- Financial Data -->
+        <section class="data-section">
+            <h2>Financial Performance</h2>
+            
+            <!-- Annual Financials -->
+            <div class="data-table-container">
+                <h3>Annual Results</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th>Revenue Growth</th>
+                            <th>EPS Growth</th>
+                            <th>Net Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if yearly_financials %}
+                        <tr>
+                            <td>{{ yearly_financials.year if yearly_financials.year else 'N/A' }}</td>
+                            <td class="{% if yearly_financials.revenue_growth and yearly_financials.revenue_growth >= 0 %}gain{% else %}loss{% endif %}">
+                                {{ "%.2f"|format(yearly_financials.revenue_growth) if yearly_financials.revenue_growth is not none else 'N/A' }}%
+                            </td>
+                            <td class="{% if yearly_financials.eps_growth and yearly_financials.eps_growth >= 0 %}gain{% else %}loss{% endif %}">
+                                {{ "%.2f"|format(yearly_financials.eps_growth) if yearly_financials.eps_growth is not none else 'N/A' }}%
+                            </td>
+                            <td>₹{{ "%.2f"|format(yearly_financials.profit) if yearly_financials.profit else 'N/A' }}M</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="no-data">No annual data available</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Quarterly Financials -->
+            <div class="data-table-container">
+                <h3>Latest Quarter</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Quarter</th>
+                            <th>Revenue</th>
+                            <th>Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if quarterly_financials %}
+                        <tr>
+                            <td>{{ quarterly_financials.quarter if quarterly_financials.quarter else 'N/A' }}</td>
+                            <td>₹{{ "%.2f"|format(quarterly_financials.revenue_growth) if quarterly_financials.revenue_growth else 'N/A' }}M</td>
+                            <td>₹{{ "%.2f"|format(quarterly_financials.profit) if quarterly_financials.profit else 'N/A' }}M</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="no-data">No quarterly data available</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: JSON.parse('{{ chart_data.dates | tojson | safe }}'),
+                    datasets: [{
+                        label: "Price (₹)",
+                        data: JSON.parse('{{ chart_data.prices | tojson | safe }}'),
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#4CAF50',
+                            borderWidth: 1,
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    return '₹' + context.parsed.y.toFixed(2);
+                                }
+                            }
+                        },
+                        zoom: {
+                            zoom: {
+                                wheel: { enabled: true },
+                                pinch: { enabled: true },
+                                mode: 'x',
+                            },
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { 
+                                display: false,
+                                color: 'rgba(255,255,255,0.1)' 
+                            },
+                            ticks: {
+                                color: '#ffffff'
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            grid: { 
+                                color: 'rgba(255,255,255,0.1)' 
+                            },
+                            ticks: {
+                                color: '#ffffff',
+                                callback: function(value) {
+                                    return '₹' + value;
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+            
+            // Store chart reference for timeframe updates
+            window.priceChart = chart;
+            
+            // Button animations
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.classList.add('animate__animated', 'animate__pulse');
+                    setTimeout(() => {
+                        this.classList.remove('animate__animated', 'animate__pulse');
+                    }, 500);
+                });
+            });
+        });
+
+        // Update chart timeframe
+        function updateChart(timeframe) {
+            // Update active button
+            document.querySelectorAll('.time-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Show loading state
+            window.priceChart.data.datasets[0].data = [];
+            window.priceChart.update();
+            
+            // In a real app, you would fetch new data for the selected timeframe
+            console.log("Loading data for timeframe:", timeframe);
+            
+            // Simulate loading
+            setTimeout(() => {
+                // This would be replaced with actual data fetching
+                window.priceChart.update();
+            }, 800);
+        }
+    </script>
+</body>
+</html>
