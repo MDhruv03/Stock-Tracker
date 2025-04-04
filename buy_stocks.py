@@ -28,14 +28,12 @@ def buy_stocks_page():
 
 @buy_stocks.route("/high-stocks", methods=["GET"])
 def high_stocks():
-    """Fetch and return stocks where 52W high is at least 2.1x the low."""
     query = "SELECT * FROM get_high_stocks();"
     stocks = fetch_data(query)
     return jsonify(stocks)
 
 @buy_stocks.route("/low-stocks", methods=["GET"])
 def low_stocks():
-    """Fetch and return stocks where 52W low has not changed."""
     query = "SELECT * FROM get_low_stocks();"
     stocks = fetch_data(query)
     return jsonify(stocks)

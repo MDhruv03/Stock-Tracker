@@ -1,4 +1,4 @@
-from flask import Blueprint, request, redirect, url_for, flash, current_app
+from flask import Blueprint, request, redirect, url_for, flash, current_app,jsonify
 from flask_login import login_required, current_user
 
 transactions = Blueprint("transactions", __name__)
@@ -25,102 +25,82 @@ def execute_query(query, params=()):
 @transactions.route("/buy", methods=["POST"])
 @login_required
 def buy_stock():
-    ticker = request.form["ticker"].upper()
-    quantity = int(request.form["quantity"])
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "No JSON data received"}), 400
+            
+        ticker = data.get('ticker', '').upper()
+        quantity = int(data.get('quantity', 0))
+        price = float(data.get('price', 0))
+        user_id = current_user.user_id
 
-    # ✅ Fetch stock price
-    stock_data = fetch_data("SELECT price FROM Stock WHERE ticker = %s;", (ticker,))
-    if not stock_data:  # Empty result check
-        flash("Stock not found")
-        return redirect(url_for("portfolio.view_portfolio"))
+        if quantity <= 0:
+            return jsonify({"success": False, "message": "Quantity must be positive"}), 400
 
-    stock_price = stock_data[0][0]  # Safe access
-    total_cost = quantity * stock_price
-
-    # ✅ Fetch user balance
-    user_balance_data = fetch_data("SELECT balance FROM Users WHERE user_id = %s;", (current_user.user_id,))
-    if not user_balance_data or user_balance_data[0][0] < total_cost:
-        flash("Insufficient balance")
-        return redirect(url_for("portfolio.view_portfolio"))
-
-    # ✅ Deduct balance
-    execute_query("UPDATE Users SET balance = balance - %s WHERE user_id = %s;", (total_cost, current_user.user_id))
-
-    # ✅ Insert Transaction
-    execute_query(
-        "INSERT INTO Transactions (user_id, stock_ticker, type, quantity, price) VALUES (%s, %s, 'BUY', %s, %s);",
-        (current_user.user_id, ticker, quantity, stock_price)
-    )
-
-    # ✅ Update Portfolio table:
-    existing_portfolio = fetch_data(
-        "SELECT quantity, avg_price FROM Portfolio WHERE user_id = %s AND stock_ticker = %s;",
-        (current_user.user_id, ticker)
-    )
-
-    if existing_portfolio:
-        old_qty = existing_portfolio[0][0]
-        old_avg = existing_portfolio[0][1]
-        new_qty = old_qty + quantity
-        # Calculate the weighted average price
-        new_avg = ((old_qty * old_avg) + (quantity * stock_price)) / new_qty
-        execute_query(
-            "UPDATE Portfolio SET quantity = %s, avg_price = %s WHERE user_id = %s AND stock_ticker = %s;",
-            (new_qty, new_avg, current_user.user_id, ticker)
+        # Check stock exists
+        stock_data = fetch_data(
+            "SELECT price FROM Stock WHERE ticker = %s;", 
+            (ticker,)
         )
-    else:
+        if not stock_data:
+            return jsonify({"success": False, "message": "Stock not found"}), 404
+
+        total_cost = quantity * price
+
+        # Check user balance
+        user_balance = fetch_data(
+            "SELECT balance FROM Users WHERE user_id = %s;",
+            (user_id,)
+        )
+        if not user_balance or user_balance[0][0] < total_cost:
+            return jsonify({
+                "success": False, 
+                "message": f"Insufficient balance (Needed: ₹{total_cost:.2f})"
+            }), 400
+
+        # Deduct balance
         execute_query(
-            "INSERT INTO Portfolio (user_id, stock_ticker, quantity, avg_price) VALUES (%s, %s, %s, %s);",
-            (current_user.user_id, ticker, quantity, stock_price)
+            "UPDATE Users SET balance = balance - %s WHERE user_id = %s;",
+            (total_cost, user_id)
         )
 
-    flash(f"Successfully bought {quantity} shares of {ticker}")
-    return redirect(url_for("portfolio.view_portfolio"))
-
-# ✅ Sell Stock
-@transactions.route("/sell", methods=["POST"])
-@login_required
-def sell_stock():
-    """Handles selling of stocks"""
-    ticker = request.form["ticker"].upper()
-    quantity = int(request.form["quantity"])
-
-    # ✅ Fetch stock price
-    stock_data = fetch_data("SELECT price FROM Stock WHERE ticker = %s;", (ticker,))
-    if not stock_data:
-        flash("Stock not found")
-        return redirect(url_for("portfolio.view_portfolio"))
-
-    stock_price = stock_data[0][0]
-    total_earnings = quantity * stock_price
-
-    # ✅ Check if user owns enough shares
-    portfolio_entry = fetch_data(
-        "SELECT quantity FROM Portfolio WHERE user_id = %s AND stock_ticker = %s;", 
-        (current_user.user_id, ticker)
-    )
-
-    if not portfolio_entry or portfolio_entry[0][0] < quantity:
-        flash("Not enough shares to sell")
-        return redirect(url_for("portfolio.view_portfolio"))
-
-    # ✅ Update Portfolio
-    if portfolio_entry[0][0] == quantity:
-        execute_query("DELETE FROM Portfolio WHERE user_id = %s AND stock_ticker = %s;", (current_user.user_id, ticker))
-    else:
+        # Record transaction
         execute_query(
-            "UPDATE Portfolio SET quantity = quantity - %s WHERE user_id = %s AND stock_ticker = %s;",
-            (quantity, current_user.user_id, ticker)
+            "INSERT INTO Transactions (user_id, stock_ticker, type, quantity, price) VALUES (%s, %s, 'BUY', %s, %s);",
+            (user_id, ticker, quantity, price)
         )
 
-    # ✅ Update User Balance
-    execute_query("UPDATE Users SET balance = balance + %s WHERE user_id = %s;", (total_earnings, current_user.user_id))
+        # Update portfolio
+        portfolio_data = fetch_data(
+            "SELECT quantity, avg_price FROM Portfolio WHERE user_id = %s AND stock_ticker = %s;",
+            (user_id, ticker)
+        )
 
-    # ✅ Insert Transaction
-    execute_query(
-        "INSERT INTO Transactions (user_id, stock_ticker, type, quantity, price) VALUES (%s, %s, 'SELL', %s, %s);",
-        (current_user.user_id, ticker, quantity, stock_price)
-    )
+        if portfolio_data:
+            old_qty = portfolio_data[0][0]
+            old_avg = portfolio_data[0][1]
+            new_qty = old_qty + quantity
+            new_avg = ((old_qty * old_avg) + (quantity * price)) / new_qty
+            
+            execute_query(
+                "UPDATE Portfolio SET quantity = %s, avg_price = %s WHERE user_id = %s AND stock_ticker = %s;",
+                (new_qty, new_avg, user_id, ticker)
+            )
+        else:
+            execute_query(
+                "INSERT INTO Portfolio (user_id, stock_ticker, quantity, avg_price) VALUES (%s, %s, %s, %s);",
+                (user_id, ticker, quantity, price)
+            )
 
-    flash(f"Successfully sold {quantity} shares of {ticker}")
-    return redirect(url_for("portfolio.view_portfolio"))
+        return jsonify({
+            "success": True,
+            "message": f"Successfully bought {quantity} shares of {ticker} for ₹{total_cost:.2f}",
+            "amount": str(total_cost)
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error buying stock: {str(e)}"
+        }), 500

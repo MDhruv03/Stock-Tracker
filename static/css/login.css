@@ -263,7 +263,75 @@ a:hover::after {
     100% { transform: translateY(-100vh) rotate(360deg); }
 }
 
+/* New styles for the split layout */
+.login-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;  
+    width: 90%;
+    gap: 60px;  
+}
+
+.login-container {
+    flex: 1;
+    max-width: 450px;  
+}
+
+.logo-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 810px;
+}
+
+.logo-image {
+    width: 675px;
+    height: auto;
+    max-width: 100%;
+    filter: drop-shadow(0 0 20px rgba(0, 255, 157, 0.4));  
+    animation: float 6s ease-in-out infinite;
+    transition: transform 0.3s ease;  
+}
+
+.logo-image:hover {
+    transform: scale(1.05);  
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-20px) scale(1.02); }
+}
+
 /* Responsive adjustments */
+@media (max-width: 1024px) {
+    .login-wrapper {
+        gap: 40px;
+    }
+    .logo-image {
+        width: 608px;
+    }
+}
+
+@media (max-width: 768px) {
+    .login-wrapper {
+        flex-direction: column;
+        gap: 40px;
+    }
+    
+    .logo-container {
+        order: -1;
+        margin-bottom: 30px;
+        max-width: 100%;
+    }
+    
+    .logo-image {
+        width: 540px;
+    }
+}
+
 @media (max-width: 480px) {
     .login-container {
         padding: 1.5rem;
@@ -272,5 +340,62 @@ a:hover::after {
     
     h2 {
         font-size: 1.5rem;
+    }
+    
+    .logo-image {
+        width: 473px;
+    }
+}
+
+/* Dashboard Header with Back Button */
+.dashboard-header {
+    position: relative;
+    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    width: 100%;
+}
+
+.dashboard-header h1 {
+    margin-top: 0.5rem;
+    width: 100%;
+}
+
+.back-button {
+    background: var(--primary);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    padding: 0.6rem 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.back-button:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 12px rgba(0, 255, 157, 0.3);
+}
+
+.back-button:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* Responsive adjustments for dashboard */
+@media (max-width: 768px) {
+    .dashboard-header {
+        margin-bottom: 1.5rem;
+    }
+    
+    .back-button {
+        padding: 0.5rem 1rem;
     }
 }

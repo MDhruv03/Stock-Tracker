@@ -38,6 +38,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
   }
   
   h1 {
@@ -49,6 +51,28 @@
     color: transparent;
     display: inline-block;
   }
+  .logout-btn {
+    background-color: var(--danger);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none !important;
+}
+
+.logout-btn:hover {
+    background-color: #e03131;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 56, 96, 0.3);
+}
+
   
   .balance-card {
     background: var(--card-bg);
@@ -57,6 +81,9 @@
     border: 1px solid var(--border);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     transition: transform 0.3s ease;
+    margin-left: auto; /* Pushes balance to the right */
+    margin-right: 1rem;
+    min-width: 200px;
   }
   
   .balance-card:hover {

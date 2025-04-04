@@ -80,7 +80,7 @@ def update_prices():
     """Trigger stock price update and refresh the page."""
     try:
         # ✅ Run update_prices.py using the same Python interpreter
-        script_path = os.path.join(os.getcwd(), "back", "update_prices.py")
+        script_path = os.path.join(os.getcwd(), "update_prices.py")
         subprocess.run([sys.executable, script_path], check=True)
         print("✅ Stock prices updated successfully!")
     except Exception as e:
@@ -91,12 +91,12 @@ def update_prices():
 @portfolio.route("/allocation")
 @login_required
 def get_high_allocations():
-    """Fetch stocks where allocation percentage > 50%"""
+    """Fetch all stock allocations as percentages"""
     user_id = current_user.user_id
     query = """
     SELECT 
         stock_ticker AS stock_id, 
-        ROUND((stock_value / total_value) * 100, 2) AS allocation_percentage
+        ROUND((stock_value / NULLIF(total_value, 0)) * 100, 2) AS allocation_percentage
     FROM (
         SELECT 
             t.user_id, 
@@ -108,10 +108,10 @@ def get_high_allocations():
              WHERE t2.user_id = t.user_id) AS total_value
         FROM Transactions t
         JOIN Stock s ON t.stock_ticker = s.ticker
+        WHERE t.user_id = %s
         GROUP BY t.user_id, t.stock_ticker
     ) AS portfolio_alloc
-    WHERE ROUND((stock_value / total_value) * 100, 2) > 50 
-    AND user_id = %s;
+    ORDER BY allocation_percentage DESC;
     """
     
     results = fetch_data(query, (user_id,))
@@ -141,15 +141,19 @@ def get_transaction_history():
     RealizedPnl AS (
         SELECT 
             t_sell.transaction_id,
-            SUM(t_sell.quantity * (t_sell.price - t_buy.price)) AS realized_pnl
+            t_sell.quantity * (
+                t_sell.price - COALESCE((
+                    SELECT SUM(t_buy.quantity * t_buy.price) / NULLIF(SUM(t_buy.quantity), 0)
+                    FROM Transactions t_buy
+                    WHERE t_buy.user_id = t_sell.user_id
+                        AND t_buy.stock_ticker = t_sell.stock_ticker
+                        AND t_buy.type = 'BUY'
+                        AND t_buy.timestamp <= t_sell.timestamp
+                ), 0)
+            ) AS realized_pnl
         FROM Transactions t_sell
-        JOIN Transactions t_buy 
-            ON t_sell.stock_ticker = t_buy.stock_ticker 
-            AND t_buy.type = 'BUY'
-            AND t_buy.timestamp <= t_sell.timestamp
         WHERE t_sell.user_id = %s 
             AND t_sell.type = 'SELL'
-        GROUP BY t_sell.transaction_id
     ),
     UnrealizedPnl AS (
         SELECT 

@@ -20,9 +20,8 @@
    {% endif %}
 {% endwith %}
     <div class="container animate__animated animate__fadeIn">
-        <!-- ... (rest of HTML content) ... -->
         <header>
-            <h1>🚀 Quantum Trade</h1>
+            <h1>🚀 Trade Lab</h1>
           </header>
           
           <div class="search-section">
@@ -52,7 +51,7 @@
             <table id="stocksTable">
               <thead>
                 <tr>
-                  <th onclick="sortTable(0, this)">Ticker <span class="sort-indicator">▼</span></th>
+                  <th>Ticker</th>
                   <th>Company Name</th>
                   <th onclick="sortTable(2, this)">Price <span class="sort-indicator">▼</span></th>
                   <th onclick="sortTable(3, this)">52W High <span class="sort-indicator">▼</span></th>
@@ -73,11 +72,9 @@
                   <td>₹{{ stock.high_52 }}</td>
                   <td>₹{{ stock.low_52 }}</td>
                   <td>
-                    <form method="post" action="{{ url_for('transactions.buy_stock') }}" class="buy-form">
-                      <input type="hidden" name="ticker" value="{{ stock.ticker }}">
-                      <input type="number" name="quantity" min="1" value="1" required class="buy-input">
-                      <button type="submit" class="buy-btn">Buy</button>
-                    </form>
+                    <button class="buy-btn" onclick="openBuyModal('{{ stock.ticker }}', '{{ stock.name }}', '{{ stock.price }}')">
+                      Buy
+                    </button>
                   </td>
                 </tr>
                 {% endfor %}
@@ -146,13 +143,124 @@
               </div>
             </div>
           </div>
-          
-          <div style="text-align: center; margin-top: 2rem;">
-            <button class="btn btn-primary" onclick="updatePrices()">
-              <span>⚡</span> Update All Prices
-            </button>
-          </div>
     </div>
+
+    <!-- Buy Stock Modal -->
+    <div id="buyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Buy Stock</h2>
+                <span class="close" onclick="closeBuyModal()">&times;</span>
+            </div>
+            <form id="buyForm">
+                <div class="form-group">
+                    <label for="buyTicker">Ticker</label>
+                    <input type="text" id="buyTicker" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="buyName">Stock Name</label>
+                    <input type="text" id="buyName" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="buyPrice">Current Price (₹)</label>
+                    <input type="number" id="buyPrice" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="buyQuantity">Quantity</label>
+                    <input type="number" id="buyQuantity" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="buyTotal">Total Amount (₹)</label>
+                    <input type="number" id="buyTotal" readonly>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeBuyModal()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitBuy()">Buy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/buy_stocks.js') }}"></script>
+    <script>
+        // Buy Stock Modal Functions
+        function openBuyModal(ticker, name, price) {
+            document.getElementById('buyTicker').value = ticker;
+            document.getElementById('buyName').value = name;
+            document.getElementById('buyPrice').value = price;
+            document.getElementById('buyQuantity').value = 1;
+            document.getElementById('buyTotal').value = price;
+            
+            document.getElementById('buyModal').style.display = 'block';
+            
+            // Calculate total when quantity changes
+            document.getElementById('buyQuantity').addEventListener('input', function() {
+                const quantity = parseFloat(this.value) || 0;
+                const price = parseFloat(document.getElementById('buyPrice').value) || 0;
+                document.getElementById('buyTotal').value = (quantity * price).toFixed(2);
+            });
+        }
+        
+        function closeBuyModal() {
+            document.getElementById('buyModal').style.display = 'none';
+        }
+        
+        function submitBuy() {
+            const ticker = document.getElementById('buyTicker').value;
+            const quantity = parseFloat(document.getElementById('buyQuantity').value);
+            const price = parseFloat(document.getElementById('buyPrice').value);
+            const total = parseFloat(document.getElementById('buyTotal').value);
+            
+            if (quantity <= 0) {
+                alert('Quantity must be greater than 0');
+                return;
+            }
+            
+            // Confirm before buying
+            if (!confirm(`Are you sure you want to buy ${quantity} shares of ${ticker} at ₹${price} per share for ₹${total.toFixed(2)}?`)) {
+                return;
+            }
+            
+            // Send buy request to server
+            fetch('{{ url_for("transactions.buy_stock") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ticker: ticker,
+                    quantity: quantity,
+                    price: price
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.message || 'Failed to buy stock'); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Stock bought successfully!');
+                    closeBuyModal();
+                    window.location.reload();
+                } else {
+                    throw new Error(data.message || 'Unknown error occurred');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(error.message || 'An error occurred while buying the stock');
+            });
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('buyModal');
+            if (event.target == modal) {
+                closeBuyModal();
+            }
+        }
+    </script>
 </body>
 </html>

@@ -147,8 +147,8 @@
         <h3>Add New Stock</h3>
         <form method="POST" action="{{ url_for('admin.add_stock') }}" id="stockForm">
             <div class="form-group">
-                <label for="ticker">Stock Ticker (1-5 uppercase letters)</label>
-                <input type="text" id="ticker" name="ticker" required pattern="[A-Z]{1,5}" title="1-5 uppercase letters">
+                <label for="ticker">Stock Ticker (must end with market)</label>
+                <input type="text" id="ticker" name="ticker">
             </div>
             
             <div class="form-group">

@@ -1,34 +1,54 @@
 function sortTable(colIndex, header) {
-    const table = document.getElementById("stocksTable");
-    const headers = table.querySelectorAll("th");
-    const rows = Array.from(table.rows).slice(1); // Skip header
-    const isAscending = !header.classList.contains("sort-asc");
-    
-    // Reset all headers
-    headers.forEach(h => {
+  const table = document.getElementById("stocksTable");
+  const headers = table.querySelectorAll("th");
+  const tbody = table.querySelector("tbody");
+  const rows = Array.from(tbody.rows);
+  const isAscending = !header.classList.contains("sort-asc");
+  
+  // Reset all headers
+  headers.forEach(h => {
       h.classList.remove("sort-asc", "sort-desc");
-      h.querySelector(".sort-indicator").textContent = "▼";
-    });
-    
-    // Set current header state
-    header.classList.add(isAscending ? "sort-asc" : "sort-desc");
-    header.querySelector(".sort-indicator").textContent = isAscending ? "▲" : "▼";
-    
-    // Sort rows
-    rows.sort((a, b) => {
-      let valA = a.cells[colIndex].textContent.trim().replace(/[^\d.-]/g, '');
-      let valB = b.cells[colIndex].textContent.trim().replace(/[^\d.-]/g, '');
-      
-      if (!isNaN(valA) && !isNaN(valB)) {
-        return (parseFloat(valA) - parseFloat(valB)) * (isAscending ? 1 : -1);
-      } else {
-        return valA.localeCompare(valB) * (isAscending ? 1 : -1);
+      const indicator = h.querySelector(".sort-indicator");
+      if (indicator) {
+          indicator.textContent = "▼";
       }
-    });
-    
-    // Reattach sorted rows
-    rows.forEach(row => table.tBodies[0].appendChild(row));
+  });
+  
+  // Set current header state
+  header.classList.add(isAscending ? "sort-asc" : "sort-desc");
+  const currentIndicator = header.querySelector(".sort-indicator");
+  if (currentIndicator) {
+      currentIndicator.textContent = isAscending ? "▲" : "▼";
   }
+  
+  // Sort rows
+  rows.sort((a, b) => {
+      const cellA = a.cells[colIndex];
+      const cellB = b.cells[colIndex];
+      
+      if (!cellA || !cellB) return 0;
+      
+      let valA = cellA.textContent.trim();
+      let valB = cellB.textContent.trim();
+      
+      // Remove currency symbols if present
+      valA = valA.replace(/[^\d.-]/g, '');
+      valB = valB.replace(/[^\d.-]/g, '');
+      
+      // Check if values are numeric
+      const numA = parseFloat(valA);
+      const numB = parseFloat(valB);
+      
+      if (!isNaN(numA)) {
+          return (numA - (isNaN(numB) ? 0 : numB)) * (isAscending ? 1 : -1);
+      } else {
+          return valA.localeCompare(valB) * (isAscending ? 1 : -1);
+      }
+  });
+  
+  // Reattach sorted rows
+  rows.forEach(row => tbody.appendChild(row));
+}
   
   // Filter stocks with loading state
   function filterStocks() {
@@ -304,33 +324,6 @@ function sortTable(colIndex, header) {
       .catch(error => {
         console.error("Error fetching most traded:", error);
         tradedDiv.innerHTML = "<div class='empty-state'>Error loading data</div>";
-      });
-  }
-  
-  // Update prices
-  function updatePrices() {
-    const btn = document.querySelector('.btn-primary[onclick="updatePrices()"]');
-    const originalText = btn.innerHTML;
-    
-    btn.innerHTML = '<span class="animate-spin">⚡</span> Updating...';
-    btn.disabled = true;
-    
-    fetch("{{ url_for('portfolio.update_prices') }}")
-      .then(() => {
-        btn.innerHTML = '<span>✓</span> Prices Updated!';
-        setTimeout(() => {
-          btn.innerHTML = originalText;
-          btn.disabled = false;
-          location.reload();
-        }, 1500);
-      })
-      .catch(error => {
-        console.error("Error updating prices:", error);
-        btn.innerHTML = '<span>✗</span> Error Updating';
-        setTimeout(() => {
-          btn.innerHTML = originalText;
-          btn.disabled = false;
-        }, 1500);
       });
   }
   
