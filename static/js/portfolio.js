@@ -8,7 +8,9 @@ const config = {
     endpoints: {
         allocations: '/portfolio/allocation',
         history: '/portfolio/history',
-        transactions: '/portfolio/transactions_history'
+        transactions: '/portfolio/transactions_history',
+        addfunds: '/portfolio/add_funds'
+        
     }
 };
 
@@ -387,7 +389,107 @@ const ui = {
         });
     }
 };
+// Add Funds Functionality - Minimal Version
+document.addEventListener('DOMContentLoaded', function() {
+    // DOM Elements
+    const addFundsBtn = document.getElementById('addFundsBtn');
+    const addFundsModal = document.getElementById('addFundsModal');
+    const amountInput = document.getElementById('amount');
+    const confirmBtn = document.getElementById('confirmAddFunds');
+    const closeBtns = document.querySelectorAll('.close, .close-modal');
 
+    // Open modal
+    addFundsBtn.addEventListener('click', () => {
+        addFundsModal.style.display = 'block';
+        amountInput.focus();
+    });
+
+    // Close modal
+    const closeModal = () => {
+        addFundsModal.style.display = 'none';
+        amountInput.value = '';
+    };
+
+    closeBtns.forEach(btn => btn.addEventListener('click', closeModal));
+
+    // Close when clicking outside modal
+    window.addEventListener('click', (e) => {
+        if (e.target === addFundsModal) closeModal();
+    });
+
+    // Handle form submission
+    confirmBtn.addEventListener('click', async function() {
+        const amount = parseFloat(amountInput.value);
+        
+        // Client-side validation
+        if (isNaN(amount)) {
+            alert('Please enter a valid number');
+            return;
+        }
+        
+        if (amount <= 0) {
+            alert('Amount must be greater than zero');
+            return;
+        }
+
+        // Save original button state
+        const originalText = this.innerHTML;
+        const originalDisabled = this.disabled;
+        
+        // Set loading state
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+        try {
+            const response = await fetch("/portfolio/add_funds", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ amount })
+            });
+
+            // Handle response
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to add funds');
+            }
+
+            // Success - update UI
+            updateBalanceDisplay(data.new_balance);
+            showSuccessMessage(`Successfully added $${amount.toFixed(2)}`);
+            closeModal();
+            
+        } catch (error) {
+            console.error('Add funds error:', error);
+            showErrorMessage(error.message || 'An error occurred');
+        } finally {
+            // Reset button state
+            this.disabled = originalDisabled;
+            this.innerHTML = originalText;
+        }
+    });
+
+    // Helper functions
+    function updateBalanceDisplay(newBalance) {
+        document.querySelectorAll('.balance-amount').forEach(el => {
+            el.textContent = `$${newBalance.toFixed(2)}`;
+        });
+    }
+
+    function showSuccessMessage(message) {
+        // Replace with your preferred notification system
+        alert(message); 
+        // Or use a toast notification: showToast(message, 'success');
+    }
+
+    function showErrorMessage(message) {
+        // Replace with your preferred error display
+        alert(message);
+        // Or use: showToast(message, 'error');
+    }
+});
 // ======================
 // Initialization
 // ======================

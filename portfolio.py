@@ -330,3 +330,42 @@ def sell_stock():
             "success": False,
             "message": f"Error selling stock: {str(e)}"
         }), 500
+    
+@portfolio.route("/add_funds", methods=["POST"])
+@login_required
+def add_funds():
+    """
+    Endpoint to add funds to the user's account.
+    Expects a JSON payload with an "amount" key.
+    """
+    data = request.get_json()
+    try:
+        amount = float(data.get("amount", 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid amount"}), 400
+
+    if amount <= 0:
+        return jsonify({"error": "Amount must be greater than zero"}), 400
+
+    user_id = current_user.user_id
+
+    conn = current_app.config["DB_POOL"].getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE Users SET balance = balance + %s WHERE user_id = %s RETURNING balance",
+                (amount, user_id)
+            )
+            result = cur.fetchone()
+            if result is None:
+                conn.rollback()
+                return jsonify({"error": "User not found"}), 404
+
+            new_balance = result[0]
+            conn.commit()
+            return jsonify({"new_balance": new_balance})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        current_app.config["DB_POOL"].putconn(conn)

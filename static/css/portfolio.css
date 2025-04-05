@@ -18,6 +18,9 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
   
+  .fa-spinner {
+    margin-right: 0.5rem;
+}
   body {
     background: var(--bg);
     color: var(--text);
@@ -629,4 +632,21 @@
   background-color: rgba(0, 255, 157, 0.1);
   color: var(--gain);
   border-left-color: var(--gain);
+}
+/* Add to your existing button styles */
+.btn i {
+  margin-right: 0.5rem;
+}
+
+/* Add Funds specific styles */
+#addFundsBtn {
+  margin-left: 1rem;
+}
+
+/* Modal input specific styling */
+#amount {
+  font-size: 1.2rem;
+  text-align: center;
+  padding: 1rem;
+  width: 100%;
 }

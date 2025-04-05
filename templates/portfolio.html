@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/portfolio.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         /* Sell Modal Styles */
         .modal {
@@ -136,6 +137,11 @@
               <h3>Available Balance</h3>
               <div class="amount">₹{{ current_user.balance }}</div>
             </div>
+            <div class="action-buttons">
+              <button id="addFundsBtn" class="btn btn-primary">
+                  <i class="fas fa-plus-circle"></i> Add Funds
+              </button>
+          </div>
             <div class="header">
               <form action="{{ url_for('auth.logout') }}" method="POST">
                   <button type="submit" class="logout-btn">Logout</button>
@@ -388,5 +394,23 @@
             }
         }
     </script>
+    <div id="addFundsModal" class="modal">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h2>Add Funds</h2>
+              <span class="close">&times;</span>
+          </div>
+          <div class="modal-body">
+              <div class="form-group">
+                  <label for="amount">Amount (₹)</label>
+                  <input type="number" id="amount" min="1" step="0.01" placeholder="Enter amount">
+              </div>
+          </div>
+          <div class="modal-footer">
+              <button class="btn btn-secondary close-modal">Cancel</button>
+              <button id="confirmAddFunds" class="btn btn-primary">Add Funds</button>
+          </div>
+      </div>
+  </div>
 </body>
 </html>

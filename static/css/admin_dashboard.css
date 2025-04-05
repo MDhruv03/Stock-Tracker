@@ -14,8 +14,12 @@
 }
 
 /* ===== BASE STYLES ===== */
+
+
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Poppins', sans-serif;
+    color: #ffffff;
+    background-color: #131420;
     margin: 0;
     padding: 2rem;
     background: var(--bg);
@@ -116,7 +120,7 @@ body {
     padding: 1rem;
     text-align: left;
     font-weight: 500;
-    font-size: 0.85rem;
+    font-size: 1rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 1px solid var(--border);
@@ -126,6 +130,7 @@ body {
     padding: 1rem;
     border-bottom: 1px solid var(--border);
     color: var(--text);
+    
 }
 
 .data-table tr:last-child td {
@@ -194,15 +199,23 @@ body {
 /* ===== BUTTON STYLES ===== */
 .btn {
     padding: 0.75rem 1.5rem;
+    background-color: #0aff9d;
+    color: #131420;
+    font-family: 'Poppins', sans-serif;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
     border-radius: 8px;
-    font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
     border: none;
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 1rem;
 }
 
 .btn:hover {
