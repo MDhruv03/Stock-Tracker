@@ -161,6 +161,11 @@
   .btn-primary {
     background: var(--primary);
     color: #000;
+    margin-top: 2rem
+  }
+  .btn-primary2 {
+    background: var(--primary);
+    color: #000;
   }
   
   .btn-primary:hover {

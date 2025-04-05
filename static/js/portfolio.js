@@ -456,9 +456,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(data.error || 'Failed to add funds');
             }
 
+
             // Success - update UI
             updateBalanceDisplay(data.new_balance);
             showSuccessMessage(`Successfully added $${amount.toFixed(2)}`);
+            window.location.reload();
             closeModal();
             
         } catch (error) {
