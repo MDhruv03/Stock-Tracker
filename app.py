@@ -232,6 +232,156 @@ $$ LANGUAGE plpgsql;
 
 
 """
+CREATE_TRIGGERS_SQL = """
+-- Trigger to update user balance after a BUY transaction
+CREATE OR REPLACE FUNCTION update_balance_after_buy()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Deduct the purchase amount from user's balance
+    UPDATE Users 
+    SET balance = balance - (NEW.quantity * NEW.price)
+    WHERE user_id = NEW.user_id;
+    
+    -- Update the portfolio
+    INSERT INTO Portfolio (user_id, stock_ticker, quantity, avg_price)
+    VALUES (NEW.user_id, NEW.stock_ticker, NEW.quantity, NEW.price)
+    ON CONFLICT (user_id, stock_ticker) 
+    DO UPDATE SET 
+        quantity = Portfolio.quantity + NEW.quantity,
+        avg_price = (Portfolio.avg_price * Portfolio.quantity + NEW.price * NEW.quantity) / 
+                    (Portfolio.quantity + NEW.quantity);
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_after_buy
+AFTER INSERT ON Transactions
+FOR EACH ROW
+WHEN (NEW.type = 'BUY')
+EXECUTE FUNCTION update_balance_after_buy();
+
+-- Trigger to update broker user count when a new user joins
+CREATE OR REPLACE FUNCTION update_broker_user_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.brokerage_id IS NOT NULL THEN
+        UPDATE Brokers 
+        SET user_count = user_count + 1 
+        WHERE brokerage_id = NEW.brokerage_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_after_user_insert
+AFTER INSERT ON Users
+FOR EACH ROW
+EXECUTE FUNCTION update_broker_user_count();
+
+-- Trigger to prevent selling more shares than owned
+CREATE OR REPLACE FUNCTION prevent_overselling()
+RETURNS TRIGGER AS $$
+DECLARE
+    shares_owned INT;
+BEGIN
+    SELECT COALESCE(quantity, 0) INTO shares_owned
+    FROM Portfolio
+    WHERE user_id = NEW.user_id AND stock_ticker = NEW.stock_ticker;
+    
+    IF NEW.type = 'SELL' AND NEW.quantity > shares_owned THEN
+        RAISE EXCEPTION 'Cannot sell more shares than owned (owned: %, trying to sell: %)', 
+              shares_owned, NEW.quantity;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_before_sell
+BEFORE INSERT ON Transactions
+FOR EACH ROW
+WHEN (NEW.type = 'SELL')
+EXECUTE FUNCTION prevent_overselling();
+
+-- Trigger to log price changes for auditing
+CREATE TABLE IF NOT EXISTS Stock_Price_Audit (
+    audit_id SERIAL PRIMARY KEY,
+    ticker VARCHAR(20) REFERENCES Stock(ticker),
+    old_price NUMERIC(10,2),
+    new_price NUMERIC(10,2),
+    change_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    change_percentage NUMERIC(5,2)
+);
+
+CREATE OR REPLACE FUNCTION log_price_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.price IS DISTINCT FROM NEW.price THEN
+        INSERT INTO Stock_Price_Audit (ticker, old_price, new_price, change_percentage)
+        VALUES (
+            NEW.ticker, 
+            OLD.price, 
+            NEW.price,
+            ROUND(((NEW.price - OLD.price) / OLD.price * 100), 2)
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_after_price_change
+AFTER UPDATE OF price ON Stock
+FOR EACH ROW
+EXECUTE FUNCTION log_price_changes();
+
+-- Trigger to maintain 52-week high/low values
+CREATE OR REPLACE FUNCTION update_52week_high_low()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- If price exceeds current 52-week high
+    IF NEW.price > COALESCE(NEW.high_52, 0) THEN
+        NEW.high_52 := NEW.price;
+    END IF;
+    
+    -- If price is below current 52-week low or low is null
+    IF NEW.price < COALESCE(NEW.low_52, NEW.price + 1) THEN
+        NEW.low_52 := NEW.price;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_before_price_update
+BEFORE UPDATE OF price ON Stock
+FOR EACH ROW
+EXECUTE FUNCTION update_52week_high_low();
+
+-- Trigger to update market cap when volume or price changes
+CREATE OR REPLACE FUNCTION update_market_cap()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE Market_Analysis ma
+    SET market_cap = s.price * ma.volume
+    FROM Stock s
+    WHERE ma.stock_ticker = s.ticker
+    AND s.ticker = NEW.ticker;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_after_stock_price_change
+AFTER UPDATE OF price ON Stock
+FOR EACH ROW
+EXECUTE FUNCTION update_market_cap();
+
+CREATE TRIGGER trigger_after_volume_change
+AFTER UPDATE OF volume ON Market_Analysis
+FOR EACH ROW
+EXECUTE FUNCTION update_market_cap();
+"""
 
 
 import psycopg2

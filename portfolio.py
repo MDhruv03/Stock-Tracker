@@ -4,7 +4,6 @@ import subprocess
 import sys
 import os
 import pandas as pd
-import psycopg2
 import yfinance as yf
 
 portfolio = Blueprint("portfolio", __name__)

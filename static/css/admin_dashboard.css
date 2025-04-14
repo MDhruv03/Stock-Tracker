@@ -145,6 +145,9 @@ body {
     display: flex;
     gap: 0.5rem;
 }
+.action-buttons a {
+    text-decoration: none;
+}
 
 /* ===== FORM STYLES ===== */
 .form-container {
