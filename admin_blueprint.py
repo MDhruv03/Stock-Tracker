@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
 from flask_login import login_required, current_user
-from werkzeug.security import generate_password_hash
 import psycopg2
+import bcrypt
 
 admin = Blueprint("admin", __name__)
 
@@ -93,7 +93,7 @@ def reset_password(user_id):
         return redirect(url_for("admin.admin_dashboard"))
     
     try:
-        hashed_password = generate_password_hash(new_password)
+        hashed_password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
         execute_query(
             "UPDATE Users SET password_hash = %s WHERE user_id = %s",
             (hashed_password, user_id)

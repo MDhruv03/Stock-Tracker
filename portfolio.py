@@ -191,46 +191,72 @@ def get_transaction_history():
 
     return jsonify(result)
 
-# In portfolio.py's get_historical_portfolio_value route
-@portfolio.route("/history",methods=['GET'])
+@portfolio.route("/history", methods=['GET'])
 @login_required
 def get_historical_portfolio_value():
-    """Calculate accurate historical portfolio value"""
+    """Approximate portfolio value over time using only transaction days and carry forward values"""
     user_id = current_user.user_id
-    
-    # Get all transactions with current prices
+
     query = """
-    WITH all_dates AS (
-        SELECT DISTINCT date_trunc('day', timestamp)::date AS date 
-        FROM Transactions 
+    WITH tx_dates AS (
+        SELECT DISTINCT date_trunc('day', timestamp)::date AS date
+        FROM Transactions
         WHERE user_id = %s
-        UNION SELECT CURRENT_DATE
-        ORDER BY date
     ),
-    daily_holdings AS (
+    all_dates AS (
+        SELECT generate_series(
+            (SELECT MIN(date) FROM tx_dates),
+            CURRENT_DATE,
+            interval '1 day'
+        )::date AS date
+    ),
+    cumulative_holdings AS (
         SELECT 
             d.date,
             t.stock_ticker,
-            SUM(CASE WHEN t.type = 'BUY' THEN t.quantity ELSE -t.quantity END) 
-                OVER (PARTITION BY t.stock_ticker ORDER BY d.date) AS running_qty
+            SUM(
+                CASE 
+                    WHEN t.type = 'BUY' THEN t.quantity 
+                    ELSE -t.quantity 
+                END
+            ) AS net_quantity
         FROM all_dates d
-        LEFT JOIN Transactions t ON 
-            date_trunc('day', t.timestamp)::date <= d.date AND 
-            t.user_id = %s
+        JOIN Transactions t ON 
+            date_trunc('day', t.timestamp)::date <= d.date 
+            AND t.user_id = %s
+        GROUP BY d.date, t.stock_ticker
     ),
-    daily_values AS (
+    valued_portfolio AS (
         SELECT 
-            dh.date,
-            SUM(dh.running_qty * s.price) AS portfolio_value
-        FROM daily_holdings dh
-        JOIN Stock s ON dh.stock_ticker = s.ticker
-        WHERE dh.running_qty > 0
-        GROUP BY dh.date
-        ORDER BY dh.date
+            ch.date,
+            SUM(
+                CASE 
+                    WHEN ch.net_quantity > 0 THEN ch.net_quantity * s.price 
+                    ELSE 0 
+                END
+            ) AS portfolio_value
+        FROM cumulative_holdings ch
+        JOIN Stock s ON s.ticker = ch.stock_ticker
+        GROUP BY ch.date
+    ),
+    filled_dates AS (
+        SELECT 
+            ad.date,
+            vp.portfolio_value
+        FROM all_dates ad
+        LEFT JOIN valued_portfolio vp ON ad.date = vp.date
+        ORDER BY ad.date
     )
-    SELECT date, portfolio_value FROM daily_values;
+    SELECT 
+    date,
+    MAX(portfolio_value) OVER (
+        ORDER BY date 
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS portfolio_value
+FROM filled_dates
+
     """
-    
+
     try:
         historical_data = fetch_data(query, (user_id, user_id))
         return jsonify({
@@ -242,6 +268,8 @@ def get_historical_portfolio_value():
     except Exception as e:
         current_app.logger.error(f"Error fetching portfolio history: {str(e)}")
         return jsonify({"error": "Could not fetch historical data"}), 500
+
+
 
 from decimal import Decimal
 
